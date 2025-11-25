@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>统计页面 - 店铺扫码计数</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 30px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        .stats-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .total-count {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+        
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .filter-section {
+            margin-bottom: 20px;
+        }
+        
+        .filter-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .filter-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        thead {
+            background: #f5f5f5;
+        }
+        
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        th {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        tbody tr:hover {
+            background: #f9f9f9;
+        }
+        
+        .count-badge {
+            background: #667eea;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: inline-block;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        
+        .group-section {
+            margin-bottom: 40px;
+        }
+        
+        .group-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        @media (max-width: 768px) {
+            .stats-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            table {
+                font-size: 14px;
+            }
+            
+            th, td {
+                padding: 10px 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>店铺扫码统计</h1>
+        <p class="subtitle">所有店铺的扫码计数统计</p>
+        
+        <div class="stats-header">
+            <div class="total-count">
+                总计数: <span id="totalCount">0</span>
+            </div>
+            <div class="export-buttons">
+                <button class="btn btn-primary" onclick="exportToExcel()">导出Excel</button>
+                <button class="btn btn-secondary" onclick="clearAllData()">清空数据</button>
+                <button class="btn btn-secondary" onclick="location.reload()">刷新</button>
+            </div>
+        </div>
+        
+        <div class="filter-section">
+            <input type="text" class="filter-input" id="searchInput" placeholder="搜索店铺名称或督导..." oninput="filterTable()">
+        </div>
+        
+        <div id="statsContent">
+            <!-- 统计数据将在这里显示 -->
+        </div>
+    </div>
+
+    <script>
+        // 存储键名
+        const STORAGE_KEY = 'shop_count_data';
+        
+        // 获取存储的数据
+        function getStorageData() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            if (data) {
+                try {
+                    return JSON.parse(data);
+                } catch (e) {
+                    return {};
+                }
+            }
+            return {};
+        }
+        
+        // 显示统计
+        function displayStats() {
+            const data = getStorageData();
+            const shops = Object.values(data);
+            
+            if (shops.length === 0) {
+                document.getElementById('statsContent').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📊</div>
+                        <p>暂无统计数据</p>
+                        <p style="margin-top: 10px; font-size: 14px;">扫描店铺二维码开始计数</p>
+                    </div>
+                `;
+                document.getElementById('totalCount').textContent = '0';
+                return;
+            }
+            
+            // 按督导分组
+            const grouped = {};
+            shops.forEach(shop => {
+                const supervisor = shop.supervisor || '未知';
+                if (!grouped[supervisor]) {
+                    grouped[supervisor] = [];
+                }
+                grouped[supervisor].push(shop);
+            });
+            
+            // 计算总数
+            const totalCount = shops.reduce((sum, shop) => sum + (shop.count || 0), 0);
+            document.getElementById('totalCount').textContent = totalCount;
+            
+            // 生成HTML
+            let html = '';
+            const supervisors = Object.keys(grouped).sort();
+            
+            supervisors.forEach(supervisor => {
+                html += `<div class="group-section">`;
+                html += `<div class="group-title">${supervisor} (${grouped[supervisor].length} 个店铺)</div>`;
+                html += `<table class="shop-table">`;
+                html += `<thead><tr><th>店铺名称</th><th>计数</th></tr></thead>`;
+                html += `<tbody>`;
+                
+                grouped[supervisor].sort((a, b) => (b.count || 0) - (a.count || 0)).forEach(shop => {
+                    html += `<tr data-shop-name="${shop.shop_name}" data-supervisor="${shop.supervisor}">`;
+                    html += `<td>${shop.shop_name || '未知'}</td>`;
+                    html += `<td><span class="count-badge">${shop.count || 0}</span></td>`;
+                    html += `</tr>`;
+                });
+                
+                html += `</tbody></table>`;
+                html += `</div>`;
+            });
+            
+            document.getElementById('statsContent').innerHTML = html;
+        }
+        
+        // 过滤表格
+        function filterTable() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const rows = document.querySelectorAll('tbody tr');
+            
+            rows.forEach(row => {
+                const shopName = row.getAttribute('data-shop-name') || '';
+                const supervisor = row.getAttribute('data-supervisor') || '';
+                const text = (shopName + ' ' + supervisor).toLowerCase();
+                
+                if (text.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        
+        // 导出Excel
+        function exportToExcel() {
+            const data = getStorageData();
+            const shops = Object.values(data);
+            
+            if (shops.length === 0) {
+                alert('暂无数据可导出');
+                return;
+            }
+            
+            // 创建CSV内容
+            let csv = '\uFEFF'; // BOM for UTF-8
+            csv += '督导,店铺名称,计数\n';
+            
+            // 按督导分组排序
+            const grouped = {};
+            shops.forEach(shop => {
+                const supervisor = shop.supervisor || '未知';
+                if (!grouped[supervisor]) {
+                    grouped[supervisor] = [];
+                }
+                grouped[supervisor].push(shop);
+            });
+            
+            Object.keys(grouped).sort().forEach(supervisor => {
+                grouped[supervisor].forEach(shop => {
+                    csv += `"${supervisor}","${shop.shop_name || ''}",${shop.count || 0}\n`;
+                });
+            });
+            
+            // 下载文件
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `店铺统计_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        // 清空所有数据
+        function clearAllData() {
+            if (confirm('确定要清空所有统计数据吗？此操作不可恢复！')) {
+                localStorage.removeItem(STORAGE_KEY);
+                displayStats();
+                alert('数据已清空');
+            }
+        }
+        
+        // 页面加载时显示统计
+        displayStats();
+        
+        // 监听存储变化（如果打开了多个标签页）
+        window.addEventListener('storage', function(e) {
+            if (e.key === STORAGE_KEY) {
+                displayStats();
+            }
+        });
+        
+        // 定期刷新（可选）
+        setInterval(() => {
+            displayStats();
+        }, 5000);
+    </script>
+</body>
+</html>
+

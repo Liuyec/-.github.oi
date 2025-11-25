@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>店铺扫码计数</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .success-icon {
+            font-size: 80px;
+            color: #4CAF50;
+            margin-bottom: 20px;
+            animation: scaleIn 0.3s ease-out;
+        }
+        
+        @keyframes scaleIn {
+            from {
+                transform: scale(0);
+            }
+            to {
+                transform: scale(1);
+            }
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+        
+        .shop-info {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .shop-name {
+            font-size: 20px;
+            color: #333;
+            margin: 10px 0;
+            font-weight: 600;
+        }
+        
+        .supervisor {
+            font-size: 16px;
+            color: #666;
+            margin-top: 10px;
+        }
+        
+        .count {
+            font-size: 64px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 30px 0;
+            animation: countUp 0.5s ease-out;
+        }
+        
+        @keyframes countUp {
+            from {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .count-label {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+        
+        .stats-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        
+        .stats-link:hover {
+            background: #5568d3;
+        }
+        
+        .error {
+            color: #f44336;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="mainContainer">
+        <div class="success-icon">✓</div>
+        <h1 id="title">扫码成功！</h1>
+        <div class="shop-info">
+            <div class="shop-name" id="shopName">加载中...</div>
+            <div class="supervisor" id="supervisor">督导：加载中...</div>
+        </div>
+        <div class="count" id="count">0</div>
+        <p class="count-label">当前计数</p>
+        <a href="https://pan.baidu.com/s/1ZuVSnOL05hvsCasha7USzg" class="stats-link">查看所有统计</a>
+    </div>
+
+    <script>
+        // 从URL参数获取店铺信息
+        const urlParams = new URLSearchParams(window.location.search);
+        const shopId = urlParams.get('shop_id');
+        const supervisor = decodeURIComponent(urlParams.get('supervisor') || '');
+        const shopName = decodeURIComponent(urlParams.get('shop_name') || '');
+        
+        // 存储键名
+        const STORAGE_KEY = 'shop_count_data';
+        
+        // 获取存储的数据
+        function getStorageData() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            if (data) {
+                try {
+                    return JSON.parse(data);
+                } catch (e) {
+                    return {};
+                }
+            }
+            return {};
+        }
+        
+        // 保存数据
+        function saveStorageData(data) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+        
+        // 增加计数
+        function incrementCount(shopId, supervisor, shopName) {
+            const data = getStorageData();
+            
+            if (!data[shopId]) {
+                data[shopId] = {
+                    shop_id: shopId,
+                    supervisor: supervisor,
+                    shop_name: shopName,
+                    count: 0
+                };
+            }
+            
+            data[shopId].count += 1;
+            saveStorageData(data);
+            
+            return data[shopId].count;
+        }
+        
+        // 显示页面
+        function displayPage() {
+            if (!shopId) {
+                document.getElementById('mainContainer').innerHTML = `
+                    <div class="error">
+                        <h1>错误</h1>
+                        <p>缺少必要的参数</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 更新店铺信息
+            document.getElementById('shopName').textContent = shopName || '未知店铺';
+            document.getElementById('supervisor').textContent = `督导：${supervisor || '未知'}`;
+            
+            // 增加计数并显示
+            const newCount = incrementCount(shopId, supervisor, shopName);
+            document.getElementById('count').textContent = newCount;
+            
+            // 添加动画效果
+            const countElement = document.getElementById('count');
+            countElement.style.animation = 'none';
+            setTimeout(() => {
+                countElement.style.animation = 'countUp 0.5s ease-out';
+            }, 10);
+        }
+        
+        // 页面加载时执行
+        displayPage();
+    </script>
+</body>
+</html>
+
